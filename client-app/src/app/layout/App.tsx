@@ -1,94 +1,34 @@
-import React, { Fragment, useEffect, useState } from 'react'
+import React, { Fragment } from 'react'
 import { Container } from 'semantic-ui-react'
-import { Activity } from '../models/activity'
 import NavBar from './NavBar'
 import ActivityDashboard from '../../features/activities/dashboard/ActivityDashboard'
-import { v4 as uuid } from 'uuid'
-import agent from '../api/agent'
-import LoadingComponent from './LoadingComponent'
+import { observer } from 'mobx-react-lite'
+import { Route } from 'react-router'
+import HomePage from '../../features/home/HomePage'
+import ActivityForm from '../../features/activities/form/ActivityForm'
+import ActivityDetails from '../../features/activities/details/ActivityDetails'
+import { useLocation } from 'react-router-dom'
 
 function App() {
 
-  const [activities, setActivities] = useState<Activity[]>([])
-  const [selectedActivity, setSelectedActivity] = useState<Activity | undefined>()
-  const [editMode, setEditMode] = useState(false)
-  const [loading, setloading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    agent.Activities.list().then(response => {
-      let activityes: Activity[] = []
-      response.forEach(activity => {
-        activity.date = activity.date.split('T')[0]
-        activityes.push(activity)
-      })
-      setActivities(activityes)
-      setloading(false)
-    })
-  }, [])
-
-  const handleSelectActivity = (id: string) => {
-    setSelectedActivity(activities.find(x => x.id === id))
-  }
-  const handleCancelSelectActivity = () => {
-    setSelectedActivity(undefined)
-  }
-  const handleFormOpen = (id?: string) => {
-    id ? handleSelectActivity(id) : handleCancelSelectActivity()
-    setEditMode(true)
-  }
-  const handleFormClose = () => {
-    setEditMode(false)
-  }
-  const handleCreateOrEditActivity = (activity: Activity) => {
-    setSubmitting(true)
-    if (activity.id) {
-      agent.Activities.update(activity).then(() => {
-        setActivities([...activities.filter(x => x.id !== activity.id), activity])
-        setSelectedActivity(activity)
-        setEditMode(false)
-        setSubmitting(false)
-      })
-    } else {
-      activity.id = uuid()
-      agent.Activities.create(activity).then(() => {
-        setActivities([...activities, activity])
-        setSelectedActivity(activity)
-        setEditMode(false)
-        setSubmitting(false)
-      })
-    }
-
-  }
-  const handleDeleteActivity = (id: string) => {
-    setSubmitting(true)
-    agent.Activities.delete(id).then(() => {
-      setActivities([...activities.filter(x => x.id !== id)])
-      setSubmitting(false)
-    })
-  }
-
-  if (loading) return <LoadingComponent content='loading app' />
+  const location = useLocation()
 
   return (
     <Fragment>
-      <NavBar openForm={handleFormOpen} />
-      <Container style={{ marginTop: '7em' }}>
-        <ActivityDashboard
-          activities={activities}
-          selectedActivity={selectedActivity}
-          selectActivity={handleSelectActivity}
-          cancelSelectActivity={handleCancelSelectActivity}
-          editMode={editMode}
-          openForm={handleFormOpen}
-          closeForm={handleFormClose}
-          createOrEdit={handleCreateOrEditActivity}
-          deleteActivity={handleDeleteActivity}
-          submitting={submitting}
-        />
-      </Container>
+      <Route exact path='/' component={HomePage} />
+      <Route path={'/(.+)'} render={() => (
+        <Fragment>
+          <NavBar />
+          <Container style={{ marginTop: '7em' }}>
+            <Route exact path='/activities' component={ActivityDashboard} />
+            <Route path='/activities/:id' component={ActivityDetails} />
+            <Route key={location.key} path={['/createActivity', '/manage/:id']} component={ActivityForm} />
+          </Container>
+        </Fragment>
+      )} />
+
     </Fragment>
   )
 }
 
-export default App
+export default observer(App)
